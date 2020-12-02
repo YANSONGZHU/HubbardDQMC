@@ -1,5 +1,6 @@
 module SVDM
 using LinearAlgebra
+
 import Base.copyto!
 
 mutable struct SVD_Store{T <: Real}
@@ -56,14 +57,6 @@ function init_b_udv_store!(udv_store::Vector{SVD_Store{Float64}}, N_ns::Int, Mat
 	copyto!(udv_store[1].U, eye)
 	udv_store[1].D = ones(MatDim)
 	copyto!(udv_store[1].V, eye)
-end
-
-@inline function udv_index(time_index::Int, N_ns_int::Int)
-	cui = time_index ÷ N_ns_int + 1
-	if time_index % N_ns_int == 0
-		cui -= 1
-	end
-	return cui
 end
 
 function copyto!(A::SVD_Store{T}, B::SVD_Store{T}) where T <: Number

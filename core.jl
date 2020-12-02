@@ -1,7 +1,7 @@
 module CoreM
 
 using LinearAlgebra
-using ..SVDM: SVD_Store, svd_wrap, svd_wrap!, udv_index
+using ..SVDM: SVD_Store, svd_wrap, svd_wrap!
 using ..hubbard: expV, expV!, qmcparams
 using ..Data: temporary, persistent
 using ..PhysM: sampling, obserStore
@@ -165,48 +165,31 @@ function sweep!(Nbins::Int, Nsweep::Int, G_up::Matrix{Float64}, G_dn::Matrix{Flo
 	copyto!(pst.B_τ_0_dn_udv[2], pst.B_τ_0_dn_udv[1])
 
 	for time_index = 1:qmc.Nt
-		last_time_index = time_index - 1
-		if last_time_index == 0
-			last_time_index = qmc.Nt
-		end
 		# According to the B matrix storage scheme, when sweep up, we store the multiplication into the next.
-		cur_udv_index = udv_index(time_index, qmc.Nstable)
-		next_udv_index = cur_udv_index + 1
+		next_udv_index = time_index + 1
 
-		if time_index % qmc.Nstable == 0
+		# Here we are supposed to calculate Green's function at current time slice firstly.
+		# ATTENTION !!!
+		# After auxiliary field update, the B matrix also changes. So we MUST NOT multiply the
+		# old B Matrix into the storage.
 
-			# Here we are supposed to calculate Green's function at current time slice firstly.
-			# ATTENTION !!!
-			# After auxiliary field update, the B matrix also changes. So we MUST NOT multiply the
-			# old B Matrix into the storage.
+		copyto!(tmp.udv_up, pst.B_τ_0_up_udv[next_udv_index])
+		copyto!(tmp.udv_dn, pst.B_τ_0_dn_udv[next_udv_index])
 
-			copyto!(tmp.udv_up, pst.B_τ_0_up_udv[next_udv_index])
-			copyto!(tmp.udv_dn, pst.B_τ_0_dn_udv[next_udv_index])
+		B_τ_0_prop!(B_up_l[:,:,time_index], tmp.mat, tmp.udv, tmp.udv_up)
+		B_τ_0_prop!(B_dn_l[:,:,time_index], tmp.mat, tmp.udv, tmp.udv_dn)
 
-			B_τ_0_prop!(B_up_l[:,:,time_index], tmp.mat, tmp.udv, tmp.udv_up)
-			B_τ_0_prop!(B_dn_l[:,:,time_index], tmp.mat, tmp.udv, tmp.udv_dn)
+		B_β_τ_up = pst.B_β_τ_up_udv[next_udv_index]
+		B_β_τ_dn = pst.B_β_τ_dn_udv[next_udv_index]
 
-			B_β_τ_up = pst.B_β_τ_up_udv[next_udv_index]
-			B_β_τ_dn = pst.B_β_τ_dn_udv[next_udv_index]
-
-			G_up[:,:] = Gσττ(tmp.udv_up, B_β_τ_up, qmc.MatDim)
-			G_dn[:,:] = Gσττ(tmp.udv_dn, B_β_τ_dn, qmc.MatDim)
-
-		else
-			B_up_inv!(qmc.auxfield[:, time_index], qmc.expmT, tmp.exp_V, tmp.b_inv, qmc.expα, qmc.expmα)
-			mul!(tmp.mat, G_up, tmp.b_inv)
-			mul!(G_up, view(B_up_l, :, :, time_index), tmp.mat)
-			# ------------------------------------------------------
-			B_dn_inv!(qmc.auxfield[:, time_index], qmc.expmT, tmp.exp_V, tmp.b_inv, qmc.expα, qmc.expmα)
-			mul!(tmp.mat, G_dn, tmp.b_inv)
-			mul!(G_dn, view(B_dn_l, :, :, time_index), tmp.mat)
-		end
+		G_up[:,:] = Gσττ(tmp.udv_up, B_β_τ_up)
+		G_dn[:,:] = Gσττ(tmp.udv_dn, B_β_τ_dn)
 
 		update!(time_index, G_up, G_dn, B_up_l, B_dn_l, qmc, tmp.exp_V)
 		B_τ_0_prop!(B_up_l[:,:,time_index], tmp.mat, tmp.udv, pst.B_τ_0_up_udv[next_udv_index])
 		B_τ_0_prop!(B_dn_l[:,:,time_index], tmp.mat, tmp.udv, pst.B_τ_0_dn_udv[next_udv_index])
 
-		if time_index % qmc.Nstable == 0 && cur_udv_index != qmc.Ns
+		if time_index != qmc.Nt
 			copyto!(pst.B_τ_0_up_udv[next_udv_index + 1], pst.B_τ_0_up_udv[next_udv_index])
 			copyto!(pst.B_τ_0_dn_udv[next_udv_index + 1], pst.B_τ_0_dn_udv[next_udv_index])
 		end
@@ -218,39 +201,26 @@ function sweep!(Nbins::Int, Nsweep::Int, G_up::Matrix{Float64}, G_dn::Matrix{Flo
 	# Since we have updated the Green's Function at time_index = N_time_slice while sweep up.
 	# We just start at time_index = N_time_slice - 1 when sweep down.
 	# But we must not forget to propagate B.
-	copyto!(pst.B_β_τ_up_udv[qmc.Ns], pst.B_β_τ_up_udv[qmc.Ns + 1])
-	copyto!(pst.B_β_τ_dn_udv[qmc.Ns], pst.B_β_τ_dn_udv[qmc.Ns + 1])
-	B_β_τ_prop!(B_up_l[:,:,qmc.Nt], tmp.mat, tmp.udv, pst.B_β_τ_up_udv[qmc.Ns])
-	B_β_τ_prop!(B_dn_l[:,:,qmc.Nt], tmp.mat, tmp.udv, pst.B_β_τ_dn_udv[qmc.Ns])
+	copyto!(pst.B_β_τ_up_udv[qmc.Nt], pst.B_β_τ_up_udv[qmc.Nt + 1])
+	copyto!(pst.B_β_τ_dn_udv[qmc.Nt], pst.B_β_τ_dn_udv[qmc.Nt + 1])
+	B_β_τ_prop!(B_up_l[:,:,qmc.Nt], tmp.mat, tmp.udv, pst.B_β_τ_up_udv[qmc.Nt])
+	B_β_τ_prop!(B_dn_l[:,:,qmc.Nt], tmp.mat, tmp.udv, pst.B_β_τ_dn_udv[qmc.Nt])
 
 	for time_index = (qmc.Nt - 1):-1:1
-		last_time_index = time_index + 1
 
-		cur_udv_index = udv_index(time_index, qmc.Nstable)
+		copyto!(pst.B_β_τ_up_udv[time_index], pst.B_β_τ_up_udv[time_index + 1])
+		copyto!(pst.B_β_τ_dn_udv[time_index], pst.B_β_τ_dn_udv[time_index + 1])
 
-		if time_index % qmc.Nstable == 0
-			copyto!(pst.B_β_τ_up_udv[cur_udv_index], pst.B_β_τ_up_udv[cur_udv_index + 1])
-			copyto!(pst.B_β_τ_dn_udv[cur_udv_index], pst.B_β_τ_dn_udv[cur_udv_index + 1])
+		B_τ_0_up = pst.B_τ_0_up_udv[time_index + 1]
+		B_τ_0_dn = pst.B_τ_0_dn_udv[time_index + 1]
 
-			B_τ_0_up = pst.B_τ_0_up_udv[cur_udv_index + 1]
-			B_τ_0_dn = pst.B_τ_0_dn_udv[cur_udv_index + 1]
-
-			@views G_up[:,:] = Gσττ(B_τ_0_up, pst.B_β_τ_up_udv[cur_udv_index + 1], qmc.MatDim)
-			@views G_dn[:,:] = Gσττ(B_τ_0_dn, pst.B_β_τ_dn_udv[cur_udv_index + 1], qmc.MatDim)
-		else
-			B_up_inv!(qmc.auxfield[:,last_time_index], qmc.expmT, tmp.exp_V, tmp.b_inv, qmc.expα, qmc.expmα)
-			mul!(tmp.mat, G_up, B_up_l[:,:,last_time_index])
-			mul!(G_up, tmp.b_inv, tmp.mat)
-			# ------------------------------------------------------
-			B_dn_inv!(qmc.auxfield[:,last_time_index], qmc.expmT, tmp.exp_V, tmp.b_inv, qmc.expα, qmc.expmα)
-			mul!(tmp.mat, G_dn, B_dn_l[:,:,last_time_index])
-			mul!(G_dn, tmp.b_inv, tmp.mat)
-		end
+		@views G_up[:,:] = Gσττ(B_τ_0_up, pst.B_β_τ_up_udv[time_index + 1])
+		@views G_dn[:,:] = Gσττ(B_τ_0_dn, pst.B_β_τ_dn_udv[time_index + 1])
 
 		update!(time_index, G_up, G_dn, B_up_l, B_dn_l, qmc, tmp.exp_V)
 
-		B_β_τ_prop!(B_up_l[:,:,time_index], tmp.mat, tmp.udv, pst.B_β_τ_up_udv[cur_udv_index])
-		B_β_τ_prop!(B_dn_l[:,:,time_index], tmp.mat, tmp.udv, pst.B_β_τ_dn_udv[cur_udv_index])
+		B_β_τ_prop!(B_up_l[:,:,time_index], tmp.mat, tmp.udv, pst.B_β_τ_up_udv[time_index])
+		B_β_τ_prop!(B_dn_l[:,:,time_index], tmp.mat, tmp.udv, pst.B_β_τ_dn_udv[time_index])
 	end
 end
 
@@ -291,17 +261,15 @@ function update!(time_index::Int, G_up::Matrix{Float64}, G_dn::Matrix{Float64},
 	@views B_dn!(qmc.auxfield[:,time_index], qmc.expT, exp_V_tmp, B_dn_l[:,:,time_index], qmc.expα, qmc.expmα)
 end
 
-function Gσττ(R::SVD_Store, L::SVD_Store, N_dim::Int)
-	U_R, V_R = R.U, R.V
-	V_L, U_L = L.U, L.V
+function Gσττ(R::SVD_Store, L::SVD_Store)
 
 	D_R_max_inv = Diagonal(1 ./ max.(R.D,1))
 	D_L_max_inv = Diagonal(1 ./ max.(L.D,1))
 	D_R_min = Diagonal(min.(R.D,1))
 	D_L_min = Diagonal(min.(L.D,1))
 
-	inv(U_L) * D_L_max_inv * inv(D_R_max_inv * inv(U_L * U_R) * D_L_max_inv +
-		D_R_min * V_R * V_L * D_L_min) * D_R_max_inv * inv(U_R)
+	inv(L.V) * D_L_max_inv * inv(D_R_max_inv * inv(L.V * R.U) * D_L_max_inv +
+		D_R_min * R.V * L.U * D_L_min) * D_R_max_inv * inv(R.U)
 end
 
 end

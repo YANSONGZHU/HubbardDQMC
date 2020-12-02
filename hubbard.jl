@@ -22,8 +22,6 @@ mutable struct qmcparams
 	expmα::Float64
 	MatDim::Int
 	Nt::Int
-	Nstable::Int
-	Ns::Int
 	auxfield::Matrix{Int}
 	nnlist::Matrix{Int}
 	T::Matrix{Float64}
@@ -31,20 +29,19 @@ mutable struct qmcparams
 	expmT::Matrix{Float64}
 
 	function qmcparams(lattice::lattice, Δτ::Float64, Nwarmup::Int, Nsweep::Int,
-					   Nbins::Int, Nstable::Int)
+					   Nbins::Int)
 		α = acosh(exp(0.5 * Δτ * lattice.U))
 		expα = exp(α)
 		expmα = exp(-α)
 		MatDim = lattice.Lxyz^lattice.dim
 		Nt =  Int(lattice.β / Δτ)
-		Ns = Int(Nt/Nstable)
-		auxfield = initauxfield(MatDim, Nt)
+		auxfield = rand([-1,1], MatDim, Nt)
 		nnlist = initnnlist(MatDim, lattice.dim, lattice.Lxyz)
 		T = initT(nnlist, MatDim)
 		expT = exp(Δτ * T)
 		expmT = exp(-Δτ * T)
 		new(lattice, Δτ, Nwarmup, Nsweep, Nbins, α, expα, expmα, MatDim, Nt,
-		Nstable, Ns, auxfield, nnlist, T, expT, expmT)
+		auxfield, nnlist, T, expT, expmT)
 	end
 end
 
@@ -100,10 +97,6 @@ function xyz2index(xyz::Vector{Int}, dim::Int, Lxyz::Int)
 		index += xyz[i]*Lxyz^(i-1)
 	end
 	index + 1
-end
-
-function initauxfield(MatDim::Int, Nt::Int)
-	rand([-1,1], MatDim, Nt)
 end
 
 function expV(sigma::Int, auxfield::Vector{Int}, expα::Float64, expmα::Float64)
