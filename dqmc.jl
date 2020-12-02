@@ -4,29 +4,26 @@ include("data.jl")
 include("obser.jl")
 include("core.jl")
 
-
-using ..hubbard: lattice, qmcparams, MatType
 using Plots
-using ..PhysM: obserStore
 
 function main()
     Lxyz = 4
     dim = 3
     t = 1.0
-    U = 6.0
+    U = 6
     β = 2.5
     μ = 0.0
-    lattice3d = lattice(Lxyz,dim,t,U,β,μ)
-    Nwarmup = 10
-    Nsweep = 10
-    Nbins = 5
-    Δτ = 0.05
-    Nstable = 2
-    qmc = qmcparams(lattice3d, Δτ, Nwarmup, Nsweep, Nbins, Nstable)
-    obser = obserStore(Nbins, Nsweep)
+    lattice3d = hubbard.lattice(Lxyz,dim,t,U,β,μ)
+    Nwarmup = 2000
+    Nsweep = 20
+    Nbins = 50
+    Δτ = 0.1
+    Nstable = 1
+    qmc = hubbard.qmcparams(lattice3d, Δτ, Nwarmup, Nsweep, Nbins, Nstable)
+    obser = PhysM.obserStore(Nbins, Nsweep)
     Ns = Int(qmc.Nt/Nstable)
-    pst_data = Data.persistent(MatType, Ns, qmc.MatDim)
-    tmp_data = Data.temporary(MatType, qmc.MatDim)
+    pst_data = Data.persistent(Float64, Ns, qmc.MatDim)
+    tmp_data = Data.temporary(Float64, qmc.MatDim)
     B_up_l, B_dn_l = CoreM.init_B_mat_list!(qmc.auxfield, qmc.expT, tmp_data,
         qmc.MatDim, qmc.Nt, qmc.expα, qmc.expmα)
 
@@ -51,18 +48,19 @@ function main()
     end
 
     println()
-    # plt = plot([], label = "Double Occupy", zeros(0), xlims = (1,Nbins))
+    plt = plot([], label = "Double Occupy", zeros(0), xlims = (1,Nbins))
     for i = 1:Nbins
-        # println("bin=", i)
-        for j = 1:Nsweep
-        #    print(j, "...")
+        println("bin=", i)
+        @time for j = 1:Nsweep
+            print(j, "...")
             CoreM.sweep!(i, j, G_up, G_dn, B_up_l, B_dn_l, tmp_data,
                          pst_data, qmc, obser, true)
         end
-        # meanobser = sum(obser.structfactor[i,:]) / Nsweep
-        # push!(plt, i, [meanobser])
-        # display(plt)
-        # println()
+        meanobser = sum(obser.structfactor[i,:]) / Nsweep
+        push!(plt, i, [meanobser])
+        display(plt)
+        println()
     end
-    obser
+    println(sum(obser.structfactor) / (Nbins * Nsweep))
+    # obser.structfactor
 end

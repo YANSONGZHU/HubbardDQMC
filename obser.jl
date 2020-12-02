@@ -28,16 +28,15 @@ end
 function structfactor(gttupc::Matrix{Float64}, gttdnc::Matrix{Float64},
 					  gttup::Matrix{Float64}, gttdn::Matrix{Float64},qmc::qmcparams)
 	sf = 0.0
+	q = [pi, pi, pi]
 	for i=1:qmc.MatDim
 		for j=1:qmc.MatDim
-			lxyz = index2xyz(j,qmc.lattice.dim, qmc.lattice.Lxyz) .-
-					index2xyz(i, qmc.lattice.dim, qmc.lattice.Lxyz)
-			q = [pi, pi, pi]
-			c = (-1)^sum(lxyz)*real(exp(im*prod(q.*lxyz)))
-			# c = real(exp(im*prod(q.*lxyz)))
-			spincorr = gttupc[j,j] * gttupc[i,i] + gttupc[j,i] * gttup[i,j] +
-                gttdnc[j,j] * gttdnc[i,i] + gttdnc[j,i] * gttdn[i,j] -
-                gttdnc[j,j] * gttupc[i,i] - gttupc[j,j] * gttdnc[i,i]
+			lxyz = index2xyz(i,qmc.lattice.dim, qmc.lattice.Lxyz) .-
+					index2xyz(j, qmc.lattice.dim, qmc.lattice.Lxyz)
+			c = real(exp(im*sum(q.*lxyz)))
+			spincorr = gttupc[i,i] * gttupc[j,j] + gttupc[i,j] * gttup[i,j] +
+                gttdnc[i,i] * gttdnc[j,j] + gttdnc[i,j] * gttdn[i,j] -
+                gttdnc[i,i] * gttupc[j,j] - gttupc[i,i] * gttdnc[j,j]
 			sf += c*spincorr
 		end
 	end

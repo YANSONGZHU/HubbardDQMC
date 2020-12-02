@@ -1,7 +1,5 @@
 module hubbard
 
-const MatType = Float64
-
 import LinearAlgebra.Diagonal
 
 mutable struct lattice
@@ -114,7 +112,7 @@ function expV(sigma::Int, auxfield::Vector{Int}, expα::Float64, expmα::Float64
 end
 
 function expV!(sigma::Int, auxfield::AbstractVector{Int},
-	expV::Vector{MatType}, expα::Float64, expmα::Float64)
+	expV::Vector{Float64}, expα::Float64, expmα::Float64)
 	map!(spin -> spin == 1 * sigma ? expα : expmα, expV, auxfield)
 end
 

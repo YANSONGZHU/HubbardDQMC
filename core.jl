@@ -2,69 +2,69 @@ module CoreM
 
 using LinearAlgebra
 using ..SVDM: SVD_Store, svd_wrap, svd_wrap!, udv_index
-using ..hubbard: MatType, expV, expV!, qmcparams
+using ..hubbard: expV, expV!, qmcparams
 using ..Data: temporary, persistent
 using ..PhysM: sampling, obserStore
 
-function B_up(auxF::Vector{Int}, exp_T::Matrix{MatType}, expα::Float64, expmα::Float64)
+function B_up(auxF::Vector{Int}, exp_T::Matrix{Float64}, expα::Float64, expmα::Float64)
 	expV(1, auxF, expα, expmα) * exp_T
 end
 
-function B_dn(auxF::Vector{Int}, exp_T::Matrix{MatType}, expα::Float64, expmα::Float64)
+function B_dn(auxF::Vector{Int}, exp_T::Matrix{Float64}, expα::Float64, expmα::Float64)
 	expV(-1, auxF, expα, expmα) * exp_T
 end
 
-function B_up_inv(auxF::Vector{Int}, exp_mT::Matrix{MatType}, expα::Float64, expmα::Float64)
+function B_up_inv(auxF::Vector{Int}, exp_mT::Matrix{Float64}, expα::Float64, expmα::Float64)
 	exp_mT * expV(-1, auxF, expα, expmα)
 end
 
-function B_dn_inv(auxF::Vector{Int}, exp_mT::Matrix{MatType}, expα::Float64, expmα::Float64)
+function B_dn_inv(auxF::Vector{Int}, exp_mT::Matrix{Float64}, expα::Float64, expmα::Float64)
 	exp_mT * expV(1, auxF, expα, expmα)
 end
 
-function B_up!(auxF::AbstractVector{Int}, exp_T::Matrix{MatType}, exp_V_tmp::Vector{MatType}, expα::Float64, expmα::Float64)
+function B_up!(auxF::AbstractVector{Int}, exp_T::Matrix{Float64}, exp_V_tmp::Vector{Float64}, expα::Float64, expmα::Float64)
 	expV!(1, auxF, exp_V_tmp, expα, expmα)
 	Diagonal(exp_V_tmp) * exp_T
 end
 
-function B_dn!(auxF::AbstractVector{Int}, exp_T::Matrix{MatType}, exp_V_tmp::Vector{MatType}, expα::Float64, expmα::Float64)
+function B_dn!(auxF::AbstractVector{Int}, exp_T::Matrix{Float64}, exp_V_tmp::Vector{Float64}, expα::Float64, expmα::Float64)
 	expV!(-1, auxF, exp_V_tmp, expα, expmα)
 	Diagonal(exp_V_tmp) * exp_T
 end
 
-function B_up_inv!(auxF::AbstractVector{Int}, exp_mT::Matrix{MatType}, exp_V_tmp::Vector{MatType}, expα::Float64, expmα::Float64)
+function B_up_inv!(auxF::AbstractVector{Int}, exp_mT::Matrix{Float64}, exp_V_tmp::Vector{Float64}, expα::Float64, expmα::Float64)
 	expV!(-1, auxF, exp_V_tmp, expα, expmα)
 	exp_mT * Diagonal(exp_V_tmp)
 end
 
-function B_dn_inv!(auxF::AbstractVector{Int}, exp_mT::Matrix{MatType}, exp_V_tmp::Vector{MatType}, expα::Float64, expmα::Float64)
+function B_dn_inv!(auxF::AbstractVector{Int}, exp_mT::Matrix{Float64}, exp_V_tmp::Vector{Float64}, expα::Float64, expmα::Float64)
 	expV!(1, auxF, exp_V_tmp, expα, expmα)
 	exp_mT * Diagonal(exp_V_tmp)
 end
 
-function B_up!(auxF::AbstractVector{Int}, exp_T::Matrix{MatType}, exp_V_tmp::Vector{MatType}, B_mat::AbstractArray{MatType}, expα::Float64, expmα::Float64)
+function B_up!(auxF::AbstractVector{Int}, exp_T::Matrix{Float64}, exp_V_tmp::Vector{Float64}, B_mat::AbstractArray{Float64}, expα::Float64, expmα::Float64)
 	expV!(1, auxF, exp_V_tmp, expα, expmα)
 	mul!(B_mat, Diagonal(exp_V_tmp), exp_T)
 end
 
-function B_dn!(auxF::AbstractVector{Int}, exp_T::Matrix{MatType}, exp_V_tmp::Vector{MatType}, B_mat::AbstractArray{MatType}, expα::Float64, expmα::Float64)
+function B_dn!(auxF::AbstractVector{Int}, exp_T::Matrix{Float64}, exp_V_tmp::Vector{Float64}, B_mat::AbstractArray{Float64}, expα::Float64, expmα::Float64)
 	expV!(-1, auxF, exp_V_tmp, expα, expmα)
 	mul!(B_mat, Diagonal(exp_V_tmp), exp_T)
 end
 
-function B_up_inv!(auxF::AbstractVector{Int}, exp_mT::Matrix{MatType}, exp_V_tmp::Vector{MatType}, B_mat::AbstractArray{MatType}, expα::Float64, expmα::Float64)
+function B_up_inv!(auxF::AbstractVector{Int}, exp_mT::Matrix{Float64}, exp_V_tmp::Vector{Float64}, B_mat::AbstractArray{Float64}, expα::Float64, expmα::Float64)
 	expV!(-1, auxF, exp_V_tmp, expα, expmα)
 	mul!(B_mat, exp_mT, Diagonal(exp_V_tmp))
 end
 
-function B_dn_inv!(auxF::AbstractVector{Int}, exp_mT::Matrix{MatType}, exp_V_tmp::Vector{MatType}, B_mat::AbstractArray{MatType}, expα::Float64, expmα::Float64)
+function B_dn_inv!(auxF::AbstractVector{Int}, exp_mT::Matrix{Float64}, exp_V_tmp::Vector{Float64}, B_mat::AbstractArray{Float64}, expα::Float64, expmα::Float64)
 	expV!(1, auxF, exp_V_tmp, expα, expmα)
 	mul!(B_mat, exp_mT, Diagonal(exp_V_tmp))
 end
 
-function init_B_mat_list(auxf::Matrix{Int}, exp_T::Matrix{MatType}, MatDim::Int, N_time_slice::Int)
-	B_up_list = Array{MatType,3}(undef, MatDim, MatDim, N_time_slice)
-	B_dn_list = Array{MatType,3}(undef, MatDim, MatDim, N_time_slice)
+function init_B_mat_list(auxf::Matrix{Int}, exp_T::Matrix{Float64}, MatDim::Int, N_time_slice::Int)
+	B_up_list = Array{Float64,3}(undef, MatDim, MatDim, N_time_slice)
+	B_dn_list = Array{Float64,3}(undef, MatDim, MatDim, N_time_slice)
 	for i = 1:N_time_slice
 		B_up_list[:,:,i] = B_up(auxf[:,i], exp_T)
 		B_dn_list[:,:,i] = B_dn(auxf[:,i], exp_T)
@@ -72,10 +72,10 @@ function init_B_mat_list(auxf::Matrix{Int}, exp_T::Matrix{MatType}, MatDim::Int,
 	return B_up_list, B_dn_list
 end
 
-function init_B_mat_list!(auxf::Matrix{Int}, exp_T::Matrix{MatType},
+function init_B_mat_list!(auxf::Matrix{Int}, exp_T::Matrix{Float64},
 	tmp::temporary, MatDim::Int, N_time_slice::Int, expα::Float64, expmα::Float64)
-	B_up_list = Array{MatType,3}(undef, MatDim, MatDim, N_time_slice)
-	B_dn_list = Array{MatType,3}(undef, MatDim, MatDim, N_time_slice)
+	B_up_list = Array{Float64,3}(undef, MatDim, MatDim, N_time_slice)
+	B_dn_list = Array{Float64,3}(undef, MatDim, MatDim, N_time_slice)
 	@views for i = 1:N_time_slice
 	 	B_up_list[:,:,i] = B_up!(auxf[:,i], exp_T, tmp.exp_V, expα, expmα)
 	 	B_dn_list[:,:,i] = B_dn!(auxf[:,i], exp_T, tmp.exp_V, expα, expmα)
@@ -83,7 +83,7 @@ function init_B_mat_list!(auxf::Matrix{Int}, exp_T::Matrix{MatType},
 	return B_up_list, B_dn_list
 end
 
-function B_τ_0(time_index::Int, B_list::Array{MatType,3}, MatDim::Int)::SVD_Store
+function B_τ_0(time_index::Int, B_list::Array{Float64,3}, MatDim::Int)::SVD_Store
 	Btmp = Matrix(LinearAlgebra.I, MatDim, MatDim)
 	Utmp = Matrix(LinearAlgebra.I, MatDim, MatDim)
 	Dtmp = Matrix(LinearAlgebra.I, MatDim, MatDim)
@@ -98,7 +98,7 @@ function B_τ_0(time_index::Int, B_list::Array{MatType,3}, MatDim::Int)::SVD_Sto
 	SVD_Store(Utmp, Dtmp, Vtmp)
 end
 
-function B_β_τ(time_index::Int, B_list::Array{MatType,3}, MatDim::Int, N_time_slice::Int)::SVD_Store
+function B_β_τ(time_index::Int, B_list::Array{Float64,3}, MatDim::Int, N_time_slice::Int)::SVD_Store
 	Btmp = Matrix(LinearAlgebra.I, MatDim, MatDim)
 	Utmp = Matrix(LinearAlgebra.I, MatDim, MatDim)
 	Dtmp = Matrix(LinearAlgebra.I, MatDim, MatDim)
@@ -122,7 +122,7 @@ which could save lots of time on B matrices multiplication. Thus we must update 
 after we update auxiliary field and then B matrix.
 
 """
-function B_τ_0_prop!(B_mat::Matrix{MatType}, tmp_mat::Matrix{MatType}, tmp_udv::SVD_Store, dest::SVD_Store)
+function B_τ_0_prop!(B_mat::Matrix{Float64}, tmp_mat::Matrix{Float64}, tmp_udv::SVD_Store, dest::SVD_Store)
 	# tmp_mat = B_mat * dest.U * Diagonal(dest.D)
 	mul!(tmp_udv.U, B_mat, dest.U)
 	rmul!(tmp_udv.U, Diagonal(dest.D))
@@ -135,7 +135,7 @@ function B_τ_0_prop!(B_mat::Matrix{MatType}, tmp_mat::Matrix{MatType}, tmp_udv:
 	mul!(dest.V, tmp_udv.V, tmp_mat)
 end
 
-function B_β_τ_prop!(B_mat::AbstractArray{MatType}, tmp_mat::Matrix{MatType}, tmp_udv::SVD_Store, dest::SVD_Store)
+function B_β_τ_prop!(B_mat::AbstractArray{Float64}, tmp_mat::Matrix{Float64}, tmp_udv::SVD_Store, dest::SVD_Store)
 	# tmp_mat = Diagonal(dest.D) * dest.V * B_mat
 	mul!(tmp_udv.V, dest.V, B_mat)
 	lmul!(Diagonal(dest.D), tmp_udv.V)
@@ -148,8 +148,8 @@ function B_β_τ_prop!(B_mat::AbstractArray{MatType}, tmp_mat::Matrix{MatType}, 
 	copyto!(dest.V, tmp_udv.V)
 end
 
-function fill_b_udv_store!(B_list::Array{MatType,3}, udv_store::Vector{SVD_Store{MatType}}, N_ns_int::Int, N_ns::Int,
-						tmp_mat::Matrix{MatType}, tmp_udv::SVD_Store, ::Val{:β_τ})
+function fill_b_udv_store!(B_list::Array{Float64,3}, udv_store::Vector{SVD_Store{Float64}}, N_ns_int::Int, N_ns::Int,
+						tmp_mat::Matrix{Float64}, tmp_udv::SVD_Store, ::Val{:β_τ})
 
 	for i = N_ns:(-1):1
 		copyto!(udv_store[i], udv_store[i + 1])
@@ -161,8 +161,8 @@ function fill_b_udv_store!(B_list::Array{MatType,3}, udv_store::Vector{SVD_Store
 	end
 end
 
-function sweep!(Nbins::Int, Nsweep::Int, G_up::Matrix{MatType}, G_dn::Matrix{MatType},
-				B_up_l::Array{MatType,3}, B_dn_l::Array{MatType,3}, tmp::temporary, pst::persistent,
+function sweep!(Nbins::Int, Nsweep::Int, G_up::Matrix{Float64}, G_dn::Matrix{Float64},
+				B_up_l::Array{Float64,3}, B_dn_l::Array{Float64,3}, tmp::temporary, pst::persistent,
 				qmc::qmcparams, obser::obserStore, obser_switch::Bool)
 
 	copyto!(pst.B_τ_0_up_udv[2], pst.B_τ_0_up_udv[1])
@@ -258,8 +258,8 @@ function sweep!(Nbins::Int, Nsweep::Int, G_up::Matrix{MatType}, G_dn::Matrix{Mat
 	end
 end
 
-function update!(time_index::Int, G_up::Matrix{MatType}, G_dn::Matrix{MatType},
-	B_up_l::Array{MatType,3}, B_dn_l::Array{MatType,3}, qmc::qmcparams, exp_V_tmp::Vector{MatType})
+function update!(time_index::Int, G_up::Matrix{Float64}, G_dn::Matrix{Float64},
+	B_up_l::Array{Float64,3}, B_dn_l::Array{Float64,3}, qmc::qmcparams, exp_V_tmp::Vector{Float64})
 
 	delta_V_up = 0.0
 	delta_V_dn = 0.0
@@ -296,6 +296,16 @@ function update!(time_index::Int, G_up::Matrix{MatType}, G_dn::Matrix{MatType},
 end
 
 function Gσττ(R::SVD_Store, L::SVD_Store, N_dim::Int)
+	# U_R, V_R = R.U, R.V
+	# V_L, U_L = L.U, L.V
+	#
+	# D_R_max_inv = Diagonal(1 ./ max.(R.D,1))
+	# D_L_max_inv = Diagonal(1 ./ max.(L.D,1))
+	# D_R_min = Diagonal(min.(R.D,1))
+	# D_L_min = Diagonal(min.(L.D,1))
+	#
+	# inv(U_L) * D_L_max_inv * inv(D_R_max_inv * inv(U_L * U_R) * D_L_max_inv +
+	# 	D_R_min * V_R * V_L * D_L_min) * D_R_max_inv * inv(U_R)
 	U_R, D_R, V_R = R.U, Diagonal(R.D), R.V
 	V_L, D_L, U_L = L.U, Diagonal(L.D), L.V
 
@@ -305,10 +315,20 @@ function Gσττ(R::SVD_Store, L::SVD_Store, N_dim::Int)
 	D_L_min = zeros(N_dim)
 
 	for i = 1:N_dim
-		D_R_max[i] = max(D_R[i,i], 1)
-		D_R_min[i] = min(D_R[i,i], 1)
-		D_L_max[i] = max(D_L[i,i], 1)
-		D_L_min[i] = min(D_L[i,i], 1)
+		if real(D_R[i,i]) > 1
+			D_R_max[i] = D_R[i,i]
+			D_R_min[i] = 1
+		else
+			D_R_min[i] = D_R[i,i]
+			D_R_max[i] = 1
+		end
+		if real(D_L[i,i]) > 1
+			D_L_max[i] = D_L[i,i]
+			D_L_min[i] = 1
+		else
+			D_L_min[i] = D_L[i,i]
+			D_L_max[i] = 1
+		end
 	end
 
 	D_R_max_inv = LinearAlgebra.Diagonal(1 ./ D_R_max)

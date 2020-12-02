@@ -1,8 +1,6 @@
 module Data
 
 import ..SVDM: SVD_Store
-import ..hubbard: MatType
-
 
 """
 ## The data storage of B matrix multiplication
