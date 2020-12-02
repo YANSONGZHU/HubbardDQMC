@@ -48,8 +48,8 @@ function sampling(Nbins::Int, Nsweep::Int, G_up::Matrix{Float64},
 	eye = Matrix(LinearAlgebra.I, qmc.MatDim, qmc.MatDim)
 	G_upc = eye - transpose(G_up)
 	G_dnc = eye - transpose(G_dn)
-	# obser.kinetic[Nbins, Nsweep] = kinetic(G_upc,G_dnc,qmc)
-	# obser.doubleoccu[Nbins, Nsweep] = sum(diag(G_upc).*diag(G_dnc)) / qmc.MatDim
+	obser.kinetic[Nbins, Nsweep] = kinetic(G_upc,G_dnc,qmc)
+	obser.doubleoccu[Nbins, Nsweep] = sum(diag(G_upc).*diag(G_dnc)) / qmc.MatDim
 	obser.structfactor[Nbins, Nsweep] = structfactor(G_upc, G_dnc, G_up, G_dn, qmc)
 end
 

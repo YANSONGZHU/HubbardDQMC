@@ -123,25 +123,21 @@ after we update auxiliary field and then B matrix.
 
 """
 function B_τ_0_prop!(B_mat::Matrix{Float64}, tmp_mat::Matrix{Float64}, tmp_udv::SVD_Store, dest::SVD_Store)
-	# tmp_mat = B_mat * dest.U * Diagonal(dest.D)
 	mul!(tmp_udv.U, B_mat, dest.U)
 	rmul!(tmp_udv.U, Diagonal(dest.D))
 	copyto!(tmp_mat, tmp_udv.U)
-	svd_wrap!(tmp_mat, tmp_udv) # U, D, V = SVD( B_mat * dest.U * Diagonal(dest.D) )
+	svd_wrap!(tmp_mat, tmp_udv)
 	copyto!(dest.U, tmp_udv.U)
 	copyto!(dest.D, tmp_udv.D)
-	# ↓ dest.V = tmp_udv.V * dest.V
 	copyto!(tmp_mat, dest.V)
 	mul!(dest.V, tmp_udv.V, tmp_mat)
 end
 
 function B_β_τ_prop!(B_mat::AbstractArray{Float64}, tmp_mat::Matrix{Float64}, tmp_udv::SVD_Store, dest::SVD_Store)
-	# tmp_mat = Diagonal(dest.D) * dest.V * B_mat
 	mul!(tmp_udv.V, dest.V, B_mat)
 	lmul!(Diagonal(dest.D), tmp_udv.V)
 	copyto!(tmp_mat, tmp_udv.V)
 	svd_wrap!(tmp_mat, tmp_udv)
-	# dest.U = dest.U * tmp_udv.U
 	copyto!(tmp_mat, dest.U)
 	mul!(dest.U, tmp_mat, tmp_udv.U)
 	copyto!(dest.D, tmp_udv.D)
@@ -296,49 +292,16 @@ function update!(time_index::Int, G_up::Matrix{Float64}, G_dn::Matrix{Float64},
 end
 
 function Gσττ(R::SVD_Store, L::SVD_Store, N_dim::Int)
-	# U_R, V_R = R.U, R.V
-	# V_L, U_L = L.U, L.V
-	#
-	# D_R_max_inv = Diagonal(1 ./ max.(R.D,1))
-	# D_L_max_inv = Diagonal(1 ./ max.(L.D,1))
-	# D_R_min = Diagonal(min.(R.D,1))
-	# D_L_min = Diagonal(min.(L.D,1))
-	#
-	# inv(U_L) * D_L_max_inv * inv(D_R_max_inv * inv(U_L * U_R) * D_L_max_inv +
-	# 	D_R_min * V_R * V_L * D_L_min) * D_R_max_inv * inv(U_R)
-	U_R, D_R, V_R = R.U, Diagonal(R.D), R.V
-	V_L, D_L, U_L = L.U, Diagonal(L.D), L.V
+	U_R, V_R = R.U, R.V
+	V_L, U_L = L.U, L.V
 
-	D_R_max = zeros(N_dim)
-	D_R_min = zeros(N_dim)
-	D_L_max = zeros(N_dim)
-	D_L_min = zeros(N_dim)
+	D_R_max_inv = Diagonal(1 ./ max.(R.D,1))
+	D_L_max_inv = Diagonal(1 ./ max.(L.D,1))
+	D_R_min = Diagonal(min.(R.D,1))
+	D_L_min = Diagonal(min.(L.D,1))
 
-	for i = 1:N_dim
-		if real(D_R[i,i]) > 1
-			D_R_max[i] = D_R[i,i]
-			D_R_min[i] = 1
-		else
-			D_R_min[i] = D_R[i,i]
-			D_R_max[i] = 1
-		end
-		if real(D_L[i,i]) > 1
-			D_L_max[i] = D_L[i,i]
-			D_L_min[i] = 1
-		else
-			D_L_min[i] = D_L[i,i]
-			D_L_max[i] = 1
-		end
-	end
-
-	D_R_max_inv = LinearAlgebra.Diagonal(1 ./ D_R_max)
-	D_L_max_inv = LinearAlgebra.Diagonal(1 ./ D_L_max)
-
-	G_σ_τ_τ = inv(U_L) * D_L_max_inv *
-			inv(D_R_max_inv * inv(U_L * U_R) * D_L_max_inv +
-				LinearAlgebra.Diagonal(D_R_min) * V_R * V_L * LinearAlgebra.Diagonal(D_L_min)) *
-			D_R_max_inv * inv(U_R)
-	G_σ_τ_τ
+	inv(U_L) * D_L_max_inv * inv(D_R_max_inv * inv(U_L * U_R) * D_L_max_inv +
+		D_R_min * V_R * V_L * D_L_min) * D_R_max_inv * inv(U_R)
 end
 
 end
