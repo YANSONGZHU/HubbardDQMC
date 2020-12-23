@@ -5,18 +5,13 @@ import LinearAlgebra.Diagonal
 mutable struct lattice
 	Lxyz::Int
 	dim::Int
-	t::Float64
 	U::Float64
 	β::Float64
-	μ::Float64
 end
 
 mutable struct qmcparams
 	lattice::lattice
 	Δτ::Float64
-	Nwarmup::Int
-	Nsweep::Int
-	Nbins::Int
 	α::Float64
 	expα::Float64
 	expmα::Float64
@@ -28,20 +23,18 @@ mutable struct qmcparams
 	expT::Matrix{Float64}
 	expmT::Matrix{Float64}
 
-	function qmcparams(lattice::lattice, Δτ::Float64, Nwarmup::Int, Nsweep::Int,
-					   Nbins::Int)
+	function qmcparams(lattice::lattice, Δτ::Float64)
 		α = acosh(exp(0.5 * Δτ * lattice.U))
 		expα = exp(α)
 		expmα = exp(-α)
 		MatDim = lattice.Lxyz^lattice.dim
-		Nt =  Int(lattice.β / Δτ)
+		Nt =  Int(round(lattice.β / Δτ))
 		auxfield = rand([-1,1], MatDim, Nt)
 		nnlist = initnnlist(MatDim, lattice.dim, lattice.Lxyz)
 		T = initT(nnlist, MatDim)
 		expT = exp(Δτ * T)
 		expmT = exp(-Δτ * T)
-		new(lattice, Δτ, Nwarmup, Nsweep, Nbins, α, expα, expmα, MatDim, Nt,
-		auxfield, nnlist, T, expT, expmT)
+		new(lattice, Δτ, α, expα, expmα, MatDim, Nt, auxfield, nnlist, T, expT, expmT)
 	end
 end
 

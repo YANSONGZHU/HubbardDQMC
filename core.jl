@@ -157,7 +157,7 @@ function fill_b_udv_store!(B_list::Array{Float64,3}, udv_store::Vector{SVD_Store
 	end
 end
 
-function sweep!(Nbins::Int, Nsweep::Int, G_up::Matrix{Float64}, G_dn::Matrix{Float64},
+function sweep!(N, G_up::Matrix{Float64}, G_dn::Matrix{Float64},
 				B_up_l::Array{Float64,3}, B_dn_l::Array{Float64,3}, tmp::temporary, pst::persistent,
 				qmc::qmcparams, obser::obserStore, obser_switch::Bool)
 
@@ -165,6 +165,7 @@ function sweep!(Nbins::Int, Nsweep::Int, G_up::Matrix{Float64}, G_dn::Matrix{Flo
 	copyto!(pst.B_τ_0_dn_udv[2], pst.B_τ_0_dn_udv[1])
 
 	for time_index = 1:qmc.Nt
+		# println("sweep")
 		# According to the B matrix storage scheme, when sweep up, we store the multiplication into the next.
 		next_udv_index = time_index + 1
 
@@ -194,7 +195,7 @@ function sweep!(Nbins::Int, Nsweep::Int, G_up::Matrix{Float64}, G_dn::Matrix{Flo
 			copyto!(pst.B_τ_0_dn_udv[next_udv_index + 1], pst.B_τ_0_dn_udv[next_udv_index])
 		end
 		if obser_switch == true
-			sampling(Nbins, Nsweep, G_up, G_dn, qmc, obser)
+			sampling(N, G_up, G_dn, qmc, obser)
 		end
 	end
 
