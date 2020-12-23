@@ -6,17 +6,14 @@ include("core.jl")
 
 # using Plots
 
-function main(Nwarmup::Int,Nsweep::Int,Nbins::Int)
+function main(Nwarmup::Int, Nmeasure::Int, U::Float64, Temp::Float64, displayP::Int)
     Lxyz = 4
     dim = 3
-    t = 1.0
-    U = 6
-    β = 2.5
-    μ = 0.0
-    lattice3d = hubbard.lattice(Lxyz,dim,t,U,β,μ)
-    Δτ = 0.1
-    qmc = hubbard.qmcparams(lattice3d, Δτ, Nwarmup, Nsweep, Nbins)
-    obser = PhysM.obserStore(Nbins, Nsweep)
+    β = 1/Temp
+    lattice3d = hubbard.lattice(Lxyz,dim,U,β)
+    Δτ = β/max(20, round(β/sqrt(0.1/U)))
+    qmc = hubbard.qmcparams(lattice3d, Δτ)
+    obser = PhysM.obserStore(Nmeasure)
     pst_data = Data.persistent(Float64, qmc.Nt, qmc.MatDim)
     tmp_data = Data.temporary(Float64, qmc.MatDim)
     B_up_l, B_dn_l = CoreM.init_B_mat_list!(qmc.auxfield, qmc.expT, tmp_data,
@@ -35,27 +32,33 @@ function main(Nwarmup::Int,Nsweep::Int,Nbins::Int)
 
     G_up = CoreM.Gσττ(pst_data.B_τ_0_up_udv[1], pst_data.B_β_τ_up_udv[1])
     G_dn = CoreM.Gσττ(pst_data.B_τ_0_dn_udv[1], pst_data.B_β_τ_dn_udv[1])
-    # println("initialization done")
-    for i = 1:qmc.Nwarmup
-        # print(i, "...")
-        CoreM.sweep!(0, i, G_up, G_dn, B_up_l, B_dn_l, tmp_data,
+    if displayP == 1
+        print("Warming\n")
+    end
+    for i = 1:Nwarmup
+        if displayP == 1 && i%(Nwarmup/100) == 0
+            print('.')
+        end
+        CoreM.sweep!(i, G_up, G_dn, B_up_l, B_dn_l, tmp_data,
                      pst_data, qmc, obser, false)
     end
-
-    # println()
-    # plt = plot([], label = "Double Occupy", zeros(0), xlims = (1,Nbins))
-    for i = 1:Nbins
-        # println("bin=", i)
-        for j = 1:Nsweep
-            # print(j, "...")
-            CoreM.sweep!(i, j, G_up, G_dn, B_up_l, B_dn_l, tmp_data,
-                         pst_data, qmc, obser, true)
-        end
-        # meanobser = sum(obser.doubleoccu[i,:]) / Nsweep
-        # push!(plt, i, [meanobser])
-        # display(plt)
-        # println()
+    if displayP == 1
+        print("Measuring\n")
     end
-    # println(sum(obser.doubleoccu) / (Nbins * Nsweep))
-    obser.structfactor
+    # plt = plot([], label = "Double Occupy", zeros(0), xlims = (1,Nmeasure))
+    for i = 1:Nmeasure
+        if displayP == 1 && i%(Nwarmup/100) == 0
+            print('.')
+        end
+        CoreM.sweep!(i, G_up, G_dn, B_up_l, B_dn_l, tmp_data,
+                     pst_data, qmc, obser, true)
+        # print(obser.doubleoccu)
+        # push!(plt, i, [obser.doubleoccu[i]])
+        # display(plt)
+    end
+    if displayP == 1 & i%(Nwarmup/100) == 0
+        println()
+    end
+    # println(sum(obser.doubleoccu) / Nmeasure)
+    return obser.kinetic, obser.doubleoccu, obser.structfactor
 end
